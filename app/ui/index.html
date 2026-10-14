@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 活动</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --label: rgba(0,0,0,.86);
+  --label2: rgba(60,60,67,.62);
+  --label3: rgba(60,60,67,.38);
+  --fill: rgba(255,255,255,.52);
+  --fill-hover: rgba(255,255,255,.72);
+  --hairline: rgba(0,0,0,.07);
+  --blue: #007AFF; --orange: #FF9500; --green: #34C759; --red: #FF3B30; --gray: #8E8E93;
+  --glow-a: #4F8CFF; --glow-b: #A35CFF; --glow-c: #FF6FB1;
+  --done-tint: rgba(52,199,89,.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --label: rgba(255,255,255,.92);
+    --label2: rgba(235,235,245,.6);
+    --label3: rgba(235,235,245,.32);
+    --fill: rgba(255,255,255,.07);
+    --fill-hover: rgba(255,255,255,.12);
+    --hairline: rgba(255,255,255,.08);
+    --blue: #0A84FF; --orange: #FF9F0A; --green: #30D158; --red: #FF453A; --gray: #98989D;
+    --done-tint: rgba(48,209,88,.16);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: transparent; }
+body {
+  font: 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
+  color: var(--label);
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none; user-select: none;
+  cursor: default;
+  overflow-y: auto;
+}
+::-webkit-scrollbar { display: none; }
+#app { padding: 0 10px 10px; width: 340px; }
+
+/* 顶部：拖动区域（原生层覆盖，此处不放可点击元素） */
+header { height: 58px; display: flex; align-items: center; gap: 10px; padding: 0 6px; }
+header .head-text { flex: 1; min-width: 0; }
+header h1 { font: 600 15px/1.2 -apple-system, "SF Pro Display", "PingFang SC", sans-serif; letter-spacing: -.01em; }
+header .sum { font-size: 11.5px; color: var(--label2); font-variant-numeric: tabular-nums; margin-top: 2px; }
+header svg.spark { width: 112px; height: 30px; flex: none; overflow: visible; }
+
+.list { display: flex; flex-direction: column; gap: 6px; }
+.row {
+  position: relative; display: grid; grid-template-columns: 34px 1fr; gap: 11px;
+  padding: 10px 12px 10px 10px; border-radius: 14px; background: var(--fill);
+  box-shadow: inset 0 0 0 .5px var(--hairline);
+  transition: background .2s ease;
+}
+.row.clickable:hover { background: var(--fill-hover); }
+.row.flash { animation: flash 1.6s ease-out 2; }
+@keyframes flash { 0% { background: var(--done-tint); } 100% { background: var(--fill); } }
+
+/* 图标与活动环 */
+.glyph { position: relative; width: 34px; height: 34px; }
+.glyph .tile {
+  position: absolute; inset: 3px; border-radius: 8px;
+  background: linear-gradient(145deg, var(--a), var(--b));
+  color: #fff; display: grid; place-items: center;
+  font: 600 13px/1 -apple-system, "SF Pro Rounded", "PingFang SC", sans-serif; letter-spacing: -.02em;
+  box-shadow: inset 0 .5px 0 rgba(255,255,255,.35), 0 1px 2px rgba(0,0,0,.18);
+}
+.glyph .ring {
+  position: absolute; inset: 0; border-radius: 11px; opacity: 0;
+  background: conic-gradient(from var(--ang, 0deg), transparent 0 18%, var(--glow-a) 45%, var(--glow-b) 72%, var(--glow-c) 88%, transparent 100%);
+  padding: 2px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.row.working .glyph .ring { opacity: 1; animation: spin 1.6s linear infinite; }
+.row.waiting .glyph .ring { opacity: 1; background: var(--orange); animation: breathe 1.4s ease-in-out infinite; }
+@property --ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes spin { to { --ang: 360deg; } }
+@keyframes breathe { 50% { opacity: .35; } }
+.glyph .badge {
+  position: absolute; right: -2px; bottom: -2px; width: 15px; height: 15px; border-radius: 50%;
+  display: none; place-items: center; color: #fff;
+  box-shadow: 0 0 0 2px var(--badge-ring, rgba(30,30,32,.9));
+}
+@media (prefers-color-scheme: light) { .glyph .badge { --badge-ring: rgba(246,246,248,.95); } }
+.row.done .badge { display: grid; background: var(--green); }
+.row.error .badge { display: grid; background: var(--red); }
+.row.stopped .badge { display: grid; background: var(--gray); }
+.badge svg { width: 9px; height: 9px; }
+
+.main { min-width: 0; }
+.l1 { display: flex; align-items: baseline; gap: 6px; }
+.l1 .name { font-weight: 600; white-space: nowrap; }
+.l1 .place { font-size: 11px; color: var(--label3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.l1 .time { margin-left: auto; font-size: 11.5px; color: var(--label2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.title { color: var(--label2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.meta { display: flex; gap: 10px; align-items: baseline; margin-top: 5px; font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+.meta .state { font-weight: 600; }
+.row.working .meta .state { color: var(--blue); }
+.row.waiting .meta .state { color: var(--orange); }
+.row.done .meta .state { color: var(--green); }
+.row.error .meta .state { color: var(--red); }
+.row.stopped .meta .state, .row.stale .meta .state { color: var(--gray); }
+.meta .num { color: var(--label); }
+.meta .dim { color: var(--label2); overflow: hidden; text-overflow: ellipsis; }
+
+/* 已打开 */
+.section { margin: 12px 4px 6px; font-size: 11px; color: var(--label3); font-weight: 500; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 5px;
+  border-radius: 13px; background: var(--fill); box-shadow: inset 0 0 0 .5px var(--hairline);
+  font-size: 11.5px; max-width: 100%;
+}
+.chip:hover { background: var(--fill-hover); }
+.chip .mini {
+  width: 17px; height: 17px; border-radius: 5px; display: grid; place-items: center; flex: none;
+  background: linear-gradient(145deg, var(--a), var(--b)); color: #fff; font: 600 9px/1 -apple-system, "PingFang SC", sans-serif;
+}
+.chip .where { color: var(--label3); }
+.chip.unwatched .mini { filter: saturate(.25); opacity: .75; }
+
+/* 提示 */
+.notice {
+  margin-top: 8px; padding: 9px 11px; border-radius: 12px; font-size: 11.5px; color: var(--label2);
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--orange) 30%, transparent);
+}
+.notice b { color: var(--label); font-weight: 600; }
+.notice .steps { display: none; margin-top: 6px; line-height: 1.55; }
+.notice.open .steps { display: block; }
+
+.empty { padding: 18px 8px 8px; text-align: left; }
+.empty .big { font: 600 15px/1.3 -apple-system, "SF Pro Display", "PingFang SC", sans-serif; color: var(--label2); }
+.empty .small { font-size: 12px; color: var(--label3); margin-top: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .row.working .glyph .ring, .row.waiting .glyph .ring, .row.flash { animation: none; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="head-text">
+      <h1>AI 活动</h1>
+      <div class="sum" id="sum">正在查找打开的 AI…</div>
+    </div>
+    <svg class="spark" id="spark" viewBox="0 0 112 30" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="g" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0" stop-color="var(--glow-a)" stop-opacity=".2"/>
+          <stop offset=".6" stop-color="var(--glow-b)"/>
+          <stop offset="1" stop-color="var(--glow-c)"/>
+        </linearGradient>
+        <linearGradient id="gf" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="var(--glow-b)" stop-opacity=".28"/>
+          <stop offset="1" stop-color="var(--glow-b)" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path id="sparkFill" fill="url(#gf)"/>
+      <path id="sparkLine" fill="none" stroke="url(#g)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle id="sparkDot" r="2.2" fill="var(--glow-c)"/>
+    </svg>
+  </header>
+  <div class="list" id="list"></div>
+  <div id="notices"></div>
+  <div id="idleWrap"></div>
+</div>
+
+<script>
+const STATE = { working: '生成中', waiting: '等你确认', done: '已完成', error: '出错了', stopped: '已停止' };
+const CHECK = '<svg viewBox="0 0 10 10"><path d="M2 5.3l2 2 4-4.6" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CROSS = '<svg viewBox="0 0 10 10"><path d="M3 3l4 4M7 3l-4 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>';
+const STOP = '<svg viewBox="0 0 10 10"><rect x="3" y="3" width="4" height="4" rx=".8" fill="#fff"/></svg>';
+const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.aiw;
+const send = (o) => bridge && bridge.postMessage(JSON.stringify(o));
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function fmtTok(n) { return n >= 10000 ? (n / 1000).toFixed(1) + 'k' : n.toLocaleString('en-US'); }
+function fmtDur(s) {
+  s = Math.floor(s);
+  if (s >= 3600) return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+function ago(s) { return s < 60 ? '刚刚' : s < 3600 ? `${Math.floor(s / 60)} 分钟前` : `${Math.floor(s / 3600)} 小时前`; }
+
+/* ---------- 行（按 key 复用节点，保持动画连续） ---------- */
+const nodes = new Map();
+function rowNode(r) {
+  let el = nodes.get(r.key);
+  if (!el) {
+    el = document.createElement('div');
+    el.innerHTML = `<div class="glyph"><div class="ring"></div><div class="tile"></div><div class="badge"></div></div>
+      <div class="main"><div class="l1"><span class="name"></span><span class="place"></span><span class="time"></span></div>
+      <div class="title"></div><div class="meta"></div></div>`;
+    el.addEventListener('click', () => el.classList.contains('clickable') && send({ type: 'open', key: el.dataset.key }));
+    nodes.set(r.key, el);
+  }
+  el.dataset.key = r.key;
+  const cls = ['row', r.state, r.clickable && 'clickable', r.stale && 'stale', r.flash && 'flash'].filter(Boolean).join(' ');
+  if (el.className !== cls) el.className = cls;
+  const g = el.querySelector('.glyph');
+  g.style.setProperty('--a', r.tint[0]); g.style.setProperty('--b', r.tint[1]);
+  setText(g.querySelector('.tile'), r.glyph);
+  const badge = r.state === 'done' ? CHECK : r.state === 'error' ? CROSS : r.state === 'stopped' ? STOP : '';
+  const b = g.querySelector('.badge'); if (b.dataset.v !== r.state) { b.innerHTML = badge; b.dataset.v = r.state; }
+  setText(el.querySelector('.name'), r.label);
+  setText(el.querySelector('.place'), r.place || '');
+  const active = r.state === 'working' || r.state === 'waiting';
+  setText(el.querySelector('.time'), active ? fmtDur(r.elapsed) : ago(r.finished_ago || 0));
+  const t = el.querySelector('.title');
+  setText(t, r.title || r.model || ''); t.style.display = (r.title || r.model) ? '' : 'none';
+
+  const parts = [];
+  let st = STATE[r.state] || r.state;
+  if (r.stale) st = `${fmtDur(r.since_update)} 无更新`;
+  if (!active && r.elapsed > 0) st += ` · 用时 ${fmtDur(r.elapsed)}`;
+  parts.push(`<span class="state">${esc(st)}</span>`);
+  if (r.state === 'waiting' && r.note) {             // 等你确认时，最重要的是“要你做什么”
+    parts.push(`<span class="dim">${esc(r.note)}</span>`);
+  } else {
+  if (r.tokens != null && r.tokens > 0) parts.push(`<span class="num">${r.est ? '≈' : ''}${fmtTok(r.tokens)} tok</span>`);
+  if (r.tps) parts.push(`<span class="num">${Math.round(r.tps)} tok/s</span>`);
+  if (r.ctx) parts.push(`<span class="dim">上下文 ${fmtTok(r.ctx)}</span>`);
+  if (r.util != null) parts.push(`<span class="dim">用量 ${Math.round(r.util)}%</span>`);
+  if (r.note && active) parts.push(`<span class="dim">${esc(r.note)}</span>`);
+  }
+  const m = el.querySelector('.meta'); const html = parts.join('');
+  if (m.innerHTML !== html) m.innerHTML = html;
+  return el;
+}
+function setText(el, v) { if (el.textContent !== v) el.textContent = v; }
+
+/* ---------- 顶部脉搏线：所有任务合计 tok/s ---------- */
+const hist = new Array(90).fill(0);
+function drawSpark(tps) {
+  hist.push(tps); hist.shift();
+  const max = Math.max(20, ...hist) * 1.15, W = 112, H = 30, n = hist.length;
+  const pts = hist.map((v, i) => [i / (n - 1) * W, H - 3 - (v / max) * (H - 6)]);
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 1; i < n; i++) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], cx = (x0 + x1) / 2;
+    d += ` C${cx},${y0} ${cx},${y1} ${x1},${y1}`;
+  }
+  document.getElementById('sparkLine').setAttribute('d', d);
+  document.getElementById('sparkFill').setAttribute('d', `${d} L${W},${H} L0,${H} Z`);
+  const last = pts[n - 1], dot = document.getElementById('sparkDot');
+  dot.setAttribute('cx', last[0]); dot.setAttribute('cy', last[1]);
+  dot.style.opacity = tps > 0 ? 1 : 0;
+}
+
+/* ---------- 提示与已打开 ---------- */
+const openNotices = new Set();
+const NOTICE = {
+  js: (b) => b === 'Safari'
+    ? ['Safari 还不能读取网页状态', '① Safari › 设置 › 高级，勾选最底部的“显示网页开发者功能”<br>② 设置顶部会多出“开发者”标签页，在“自动化”里勾选“允许来自 Apple 事件的 JavaScript”']
+    : [`${b} 还不能读取网页状态`, `菜单栏 显示 › 开发者 › 勾选“允许来自 Apple 事件的 JavaScript”。<br>也可以改装 extension 文件夹里的扩展，token 数更准。`],
+  automation: (b) => [`没有控制 ${b} 的权限`, `系统设置 › 隐私与安全性 › 自动化，找到运行小组件的程序，打开 ${b} 开关。`],
+};
+function renderNotices(list) {
+  const html = list.filter((n) => NOTICE[n.kind]).map((n) => {
+    const [h, s] = NOTICE[n.kind](n.name); const id = n.name + n.kind;
+    return `<div class="notice ${openNotices.has(id) ? 'open' : ''}" data-id="${esc(id)}"><b>${esc(h)}</b>，点此查看开启方法<div class="steps">${s}</div></div>`;
+  }).join('');
+  const box = document.getElementById('notices');
+  if (box.dataset.h !== html) { box.innerHTML = html; box.dataset.h = html; }
+}
+document.getElementById('notices').addEventListener('click', (e) => {
+  const n = e.target.closest('.notice'); if (!n) return;
+  const id = n.dataset.id; openNotices.has(id) ? openNotices.delete(id) : openNotices.add(id);
+  n.classList.toggle('open'); box_dirty();
+});
+function box_dirty() { document.getElementById('notices').dataset.h = ''; }
+
+function renderIdle(idle, hasRows) {
+  const wrap = document.getElementById('idleWrap');
+  if (!idle.length) { if (wrap.innerHTML) wrap.innerHTML = ''; return; }
+  const html = `<div class="section">${hasRows ? '其他已打开' : '已打开'}</div><div class="chips">` + idle.map((c) =>
+    `<div class="chip ${c.watch ? '' : 'unwatched'}" data-key="${esc(c.key)}" title="${esc(c.title || c.label)}${c.watch ? '' : '（未读取到状态）'}">
+       <span class="mini" style="--a:${c.tint[0]};--b:${c.tint[1]}">${esc(c.glyph)}</span>${esc(c.label)}<span class="where">${esc(c.place || '')}</span></div>`).join('') + '</div>';
+  if (wrap.dataset.h !== html) { wrap.innerHTML = html; wrap.dataset.h = html; }
+}
+document.getElementById('idleWrap').addEventListener('click', (e) => {
+  const c = e.target.closest('.chip'); if (c) send({ type: 'open', key: c.dataset.key });
+});
+
+/* ---------- 主渲染（由原生层每 0.5 秒调用） ---------- */
+window.render = function (v) {
+  if (typeof v === 'string') v = JSON.parse(v);
+  const list = document.getElementById('list');
+  const keys = v.rows.map((r) => r.key);
+  for (const [k, el] of nodes) if (!keys.includes(k)) { el.remove(); nodes.delete(k); }
+  const els = v.rows.map(rowNode);
+  const current = Array.from(list.children);
+  if (els.length !== current.length || els.some((e, i) => e !== current[i])) els.forEach((e) => list.appendChild(e));
+
+  if (!v.rows.length) {
+    if (!document.getElementById('empty')) list.insertAdjacentHTML('beforeend',
+      '<div class="empty" id="empty"><div class="big">一切安静</div><div class="small">没有 AI 正在工作，发出消息后这里会实时显示进度。</div></div>');
+  } else document.getElementById('empty')?.remove();
+
+  const s = v.summary;
+  let sum = s.working ? `${s.working} 个进行中` : '空闲';
+  if (s.tps) sum += `，合计 ${Math.round(s.tps)} tok/s`;
+  else if (!s.working && v.idle.length) sum += `，已打开 ${v.idle.length} 个`;
+  setText(document.getElementById('sum'), sum);
+  drawSpark(s.tps || 0);
+  renderNotices(v.notices || []);
+  renderIdle(v.idle || [], v.rows.length > 0);
+};
+
+/* 告诉原生层内容高度，窗口随之伸缩 */
+new ResizeObserver(() => send({ type: 'height', h: Math.ceil(document.getElementById('app').getBoundingClientRect().height) }))
+  .observe(document.getElementById('app'));
+
+/* 在普通浏览器里打开时显示演示数据，方便调整样式 */
+if (!bridge) {
+  const t0 = Date.now() / 1000;
+  for (let i = 0; i < hist.length; i++) hist[i] = i < 30 ? 0 : 40 + 30 * Math.abs(Math.sin(i / 7)) + (i % 5) * 3;
+  window.render(demo(0));
+  setInterval(() => window.render(demo(Date.now() / 1000 - t0)), 500);
+}
+function demo(dt) {
+  const tps = 46 + Math.sin(dt) * 9;
+  return {
+    rows: [
+      { key: 'a', label: 'Claude', glyph: 'C', tint: ['#E8916E', '#C9663F'], place: 'Safari', title: '季度路演材料，第三部分改写', state: 'working', elapsed: 42 + dt, tokens: Math.round(1873 + tps * dt), est: true, tps, util: 63, clickable: true },
+      { key: 'b', label: 'Claude Code', glyph: '›_', tint: ['#E8916E', '#B4532E'], place: 'web-app', title: '给登录页加上双因素验证', state: 'waiting', elapsed: 301 + dt, tokens: 4210, est: false, ctx: 48200, note: '需要你允许执行 Bash 命令' },
+      { key: 'c', label: 'ChatGPT', glyph: 'G', tint: ['#3BC79B', '#0E8A68'], place: 'Chrome', title: '文献综述提纲', state: 'working', elapsed: 9 + dt, tokens: Math.round(310 + 31 * dt), est: true, tps: 31, clickable: true },
+      { key: 'd', label: 'Cursor', glyph: '⌘', tint: ['#5A5F6B', '#1E2128'], place: 'website', title: '重构导航组件', state: 'done', elapsed: 95, finished_ago: 64, tokens: 2310, est: true, clickable: true },
+    ],
+    idle: [
+      { key: 'e', label: 'Gemini', glyph: '✦', tint: ['#6AA2FF', '#8A6BE0'], place: 'Safari', watch: true },
+      { key: 'f', label: 'DeepSeek', glyph: 'D', tint: ['#6F8BFF', '#3F5BE8'], place: 'Chrome', watch: true },
+      { key: 'g', label: 'Kimi', glyph: 'K', tint: ['#5B6478', '#2E3442'], place: 'Safari', watch: false },
+    ],
+    notices: [],
+    summary: { working: 3, tps: tps + 31 },
+  };
+}
+</script>
+</body>
+</html>

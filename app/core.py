@@ -1,0 +1,415 @@
+# -*- coding: utf-8 -*-
+"""聚合层：把浏览器轮询、Chrome 扩展、hooks、本地扫描的数据合并成统一的任务列表，
+并生成给界面使用的视图数据。不依赖 macOS，可以单独测试。"""
+import json
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
+
+from sites import AGENTS, APPS, SITE_BY_ID, glyph_of, site_for_url
+
+ACTIVE = ("working", "waiting")
+FINISHED = ("done", "error", "stopped")
+STATES = ACTIVE + FINISHED + ("idle",)
+RECENT_SEC = 10 * 60          # 结束后在“刚完成”里停留的时间
+AGENT_EXPIRE = 30 * 60
+STALE_SEC = 180
+MIN_NOTIFY_SEC = 3            # 短于这个时长的“任务”不弹通知（避免页面加载时误报）
+
+TITLE_SUFFIXES = [" - Claude", " | Claude", " - ChatGPT", " - Gemini", " - Google Gemini",
+                  " - DeepSeek", " - Kimi", " - 豆包", " - Grok", " - Qwen", " | Perplexity"]
+
+
+def norm_url(u):
+    s = urlsplit(u or "")
+    return (s.netloc + s.path).rstrip("/").lower()
+
+
+def clean_title(t, label=""):
+    t = (t or "").strip()
+    for suf in TITLE_SUFFIXES:
+        if t.endswith(suf):
+            t = t[: -len(suf)].strip()
+    return "" if t.lower() in (label.lower(), "new chat", "新对话", "") else t
+
+
+def _num(v):
+    try:
+        return int(v) if v is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+class Task:
+    def __init__(self, key, kind, site):
+        self.key, self.kind, self.site = key, kind, site
+        self.label = ""
+        self.title = self.subtitle = self.place = self.model = self.note = ""
+        self.url = self.browser = ""
+        self.state = "idle"
+        self.tokens_out = self.tokens_in = None
+        self.est = True
+        self.util = None
+        self.started = self.finished = None
+        self.updated = time.time()
+        self.flash_until = 0.0
+
+    def apply(self, ev, now):
+        """应用一条状态事件；返回 True 表示任务刚刚结束（用于通知）。"""
+        prev = self.state
+        st = ev.get("state") or prev
+        if st not in STATES:
+            st = prev
+        if st in ACTIVE and prev not in ACTIVE:
+            sa = ev.get("started_at")
+            self.started = sa / 1000 if isinstance(sa, (int, float)) and sa > 1e12 else now
+            self.finished = None
+            self.tokens_out = self.tokens_in = None
+            self.est, self.note, self.util = True, "", None
+        for k in ("title", "subtitle", "model", "label"):
+            if ev.get(k):
+                setattr(self, k, str(ev[k])[:160])
+        if "note" in ev:
+            self.note = str(ev["note"] or "")[:120]
+        if _num(ev.get("tokens_out")) is not None:
+            self.tokens_out = _num(ev["tokens_out"])
+        if _num(ev.get("tokens_add")):
+            self.tokens_out = (self.tokens_out or 0) + _num(ev["tokens_add"])
+        if _num(ev.get("tokens_in")) is not None:
+            self.tokens_in = _num(ev["tokens_in"])
+        if "est" in ev:
+            self.est = bool(ev["est"])
+        if isinstance(ev.get("util"), (int, float)):
+            self.util = float(ev["util"])
+        self.state, self.updated = st, now
+        if self.started is None and st != "idle":
+            sa = ev.get("started_at")
+            self.started = sa / 1000 if isinstance(sa, (int, float)) and sa > 1e12 else now
+        if st in FINISHED and prev not in FINISHED:
+            self.finished = ev.get("finished_at") or now
+            if prev in ACTIVE:
+                self.flash_until = now + 6
+                return True
+        return False
+
+    def elapsed(self, now):
+        if self.started is None:
+            return 0.0
+        return max(0.0, (self.finished or now) - self.started)
+
+    def row(self, now):
+        glyph, tint = glyph_of(self.site)
+        el = self.elapsed(now)
+        stale = self.state == "working" and now - self.updated > STALE_SEC
+        tps = None
+        if self.state == "working" and self.tokens_out and el > 2:
+            tps = round(self.tokens_out / el, 1)
+        return {
+            "key": self.key, "site": self.site, "label": self.label, "glyph": glyph, "tint": tint,
+            "title": self.title, "subtitle": self.subtitle, "place": self.place,
+            "state": self.state, "stale": stale, "elapsed": round(el, 1),
+            "since_update": round(now - self.updated, 1),
+            "finished_ago": round(now - self.finished, 1) if self.finished else None,
+            "tokens": self.tokens_out, "est": self.est, "tps": tps, "ctx": self.tokens_in,
+            "util": self.util, "model": self.model, "note": self.note,
+            "flash": now < self.flash_until, "clickable": bool(self.url or self.kind == "app"),
+        }
+
+
+class WebTab:
+    """单个网页标签的探测状态机（基于 DOM 探测结果判断开始/结束）。"""
+
+    def __init__(self, key, site):
+        self.task = Task(key, "web", site["id"])
+        self.task.label = site["label"]
+        self.last = None              # 上一次探测 (n, count, est)
+        self.base = None              # 开始生成前的 (n, count, est)
+        self.grow_streak = 0
+        self.calm = None              # 最近一次“没在增长”时的数值，作为本轮起点
+        self.quiet = 0
+        self.seen_by_poll = False
+        self.ext_until = 0.0          # Chrome 扩展在此之前接管状态
+        self.probe_ok = False
+
+    def on_probe(self, p, now):
+        """返回需要应用到 task 的事件，或 None。"""
+        n, cnt, est, busy = int(p.get("n") or 0), int(p.get("count") or 0), \
+            int(p.get("est") or 0), bool(p.get("busy"))
+        grew = self.last is not None and (n > self.last[0] or cnt > self.last[1]) \
+            and (self.last[1] > 0 or busy)
+        self.grow_streak = self.grow_streak + 1 if grew else 0
+        prev_last, self.last = self.last, (n, cnt, est)
+        if not grew and self.task.state not in ACTIVE:
+            self.calm = self.last
+        t = self.task
+        if now < self.ext_until:
+            return None
+        if t.state not in ACTIVE:
+            if busy or self.grow_streak >= 2:
+                self.base = (self.calm if self.grow_streak >= 2 else prev_last) or prev_last or (0, 0, 0)
+                self.quiet = 0
+                return {"state": "working", "tokens_out": self._tokens(), "est": True}
+            return None
+        if busy or grew:
+            self.quiet = 0
+            return {"state": "working", "tokens_out": self._tokens(), "est": True}
+        self.quiet += 1
+        if self.quiet >= 2:
+            return {"state": "done", "tokens_out": self._tokens(), "est": True}
+        return None
+
+    def _tokens(self):
+        n, cnt, est = self.last
+        b = self.base or (0, 0, 0)
+        return est if cnt != b[1] else max(0, est - b[2])
+
+
+class Store:
+    def __init__(self, on_finish=None):
+        self.lock = threading.RLock()
+        self.web = {}            # key → WebTab
+        self.agents = {}         # key → Task
+        self.ext_tabs = {}       # 扩展 tabId → web key
+        self.hook_at = {}        # agent key → 最近一次 hook 事件时间
+        self.running_apps = set()
+        self.notices = {}
+        self.on_finish = on_finish
+        self.started = time.time()
+
+    # ---- 通知/权限提示
+    def set_notice(self, name, kind, detail=""):
+        with self.lock:
+            self.notices[name] = {"name": name, "kind": kind, "detail": detail}
+
+    def clear_notice(self, name):
+        with self.lock:
+            self.notices.pop(name, None)
+
+    def _finished(self, task, now):
+        if self.on_finish and task.elapsed(now) >= MIN_NOTIFY_SEC:
+            try:
+                self.on_finish(task.row(now))
+            except Exception:
+                pass
+
+    # ---- 浏览器轮询
+    def on_browser_poll(self, data, now, skipped=()):
+        with self.lock:
+            polled_browsers = set(data.get("status", {}))
+            seen = set()
+            for rec in data.get("tabs", []):
+                site = SITE_BY_ID.get(rec.get("site"))
+                if not site:
+                    continue
+                key = "web:" + norm_url(rec["url"])
+                seen.add(key)
+                wt = self.web.get(key)
+                if wt is None:
+                    wt = self.web[key] = WebTab(key, site)
+                wt.seen_by_poll = True
+                t = wt.task
+                t.url, t.browser, t.place = rec["url"], rec["browser"], rec["browser"]
+                title = clean_title((rec.get("probe") or {}).get("title") or rec.get("title"),
+                                    site["label"])
+                if title:
+                    t.title = title
+                p = rec.get("probe")
+                if p and "err" not in p:
+                    wt.probe_ok = True
+                    ev = wt.on_probe(p, now)
+                    if ev and t.apply(ev, now):
+                        self._finished(t, now)
+                elif not rec.get("skipped"):
+                    wt.probe_ok = False
+            for key in list(self.web):
+                wt = self.web[key]
+                if key not in seen and wt.seen_by_poll and wt.task.browser in polled_browsers \
+                        and now > wt.ext_until:
+                    del self.web[key]
+                elif key not in seen and wt.task.browser and wt.task.browser not in polled_browsers \
+                        and wt.seen_by_poll:
+                    del self.web[key]   # 浏览器已退出
+
+    def any_web_active(self):
+        with self.lock:
+            return any(w.task.state in ACTIVE for w in self.web.values())
+
+    # ---- Chrome 扩展事件（session = "ext:<tabId>"）
+    def apply_ext_event(self, ev, now=None):
+        now = now or time.time()
+        with self.lock:
+            tab_id = ev["session"]
+            if ev.get("state") == "remove":
+                key = self.ext_tabs.pop(tab_id, None)
+                if key and key in self.web and not self.web[key].seen_by_poll:
+                    del self.web[key]
+                return
+            url = ev.get("url") or ""
+            site = site_for_url(url)
+            if not site:
+                return
+            key = "web:" + norm_url(url)
+            old = self.ext_tabs.get(tab_id)
+            if old and old != key and old in self.web and not self.web[old].seen_by_poll:
+                del self.web[old]      # 新对话在发送后改了网址
+            self.ext_tabs[tab_id] = key
+            wt = self.web.get(key)
+            if wt is None:
+                wt = self.web[key] = WebTab(key, site)
+                wt.task.browser = wt.task.place = ev.get("browser") or "Chrome"
+            wt.ext_until = now + 15
+            t = wt.task
+            t.url = t.url or url
+            ev = dict(ev)
+            title = clean_title(ev.get("title"), site["label"])
+            if title:
+                ev["title"] = title
+            else:
+                ev.pop("title", None)
+            if t.apply(ev, now):
+                self._finished(t, now)
+
+    # ---- hooks / 本地扫描
+    def apply_agent_event(self, ev, origin="hook", now=None):
+        now = now or time.time()
+        with self.lock:
+            key = str(ev["session"])
+            if ev.get("state") == "remove":
+                self.agents.pop(key, None)
+                return
+            src = ev.get("source") or key.split(":")[0]
+            t = self.agents.get(key)
+            if t is None:
+                t = self.agents[key] = Task(key, "agent", src)
+                t.label = (AGENTS.get(src) or {}).get("label") or ev.get("label") or src
+            ev = dict(ev)
+            if origin == "hook":
+                self.hook_at[key] = now
+            elif origin == "scanner":
+                # hook 已报告结束，但扫描器看到的还是同一次写入：只更新数字，不改状态
+                last_hook = self.hook_at.get(key, 0)
+                if t.state in FINISHED and ev.get("state") in ACTIVE and \
+                        (ev.get("finished_at") or now) - last_hook < 20 and now - last_hook < 20:
+                    ev.pop("state", None)
+                if t.state == "waiting" and ev.get("state") == "working" and now - last_hook < 600:
+                    ev.pop("state", None)
+            project = ev.pop("title", "") or ""
+            prompt = ev.pop("subtitle", "") or ""
+            if project:
+                t.place = project
+            if prompt:
+                ev["title"] = prompt
+            if t.apply(ev, now):
+                self._finished(t, now)
+
+    def set_running_apps(self, ids):
+        with self.lock:
+            self.running_apps = set(ids)
+
+    # ---- 点击定位
+    def target_of(self, key):
+        with self.lock:
+            if key in self.web:
+                t = self.web[key].task
+                return ("tab", t.browser, t.url)
+            if key in self.agents:
+                src = self.agents[key].site
+                return ("app", "Cursor") if src == "cursor" else None
+            if key.startswith("app:"):
+                for a in APPS:
+                    if a["id"] == key[4:] and a.get("open"):
+                        return ("app", a["open"])
+        return None
+
+    # ---- 视图
+    def view(self, now=None):
+        now = now or time.time()
+        with self.lock:
+            rows, idle = [], []
+            for wt in self.web.values():
+                t = wt.task
+                recent = t.state in FINISHED and t.finished and now - t.finished < RECENT_SEC
+                if t.state in ACTIVE or recent:
+                    rows.append(t.row(now))
+                else:
+                    g, tint = glyph_of(t.site)
+                    idle.append({"key": t.key, "label": t.label, "glyph": g, "tint": tint,
+                                 "place": t.browser, "title": t.title,
+                                 "watch": wt.probe_ok or now < wt.ext_until + 600})
+            for key in list(self.agents):
+                t = self.agents[key]
+                if t.state not in ACTIVE and now - t.updated > AGENT_EXPIRE:
+                    del self.agents[key]
+                    continue
+                recent = t.state in FINISHED and t.finished and now - t.finished < RECENT_SEC
+                if t.state in ACTIVE or recent:
+                    r = t.row(now)
+                    r["clickable"] = t.site == "cursor"
+                    rows.append(r)
+            shown_agents = {self.agents[k].site for k in self.agents}
+            for a in APPS:
+                if a["id"] in self.running_apps and a["id"] not in shown_agents:
+                    g, tint = glyph_of(a["id"])
+                    idle.append({"key": "app:" + a["id"], "label": a["label"], "glyph": g,
+                                 "tint": tint, "place": "应用", "title": "", "watch": a["id"] in AGENTS})
+            rows.sort(key=lambda r: (r["state"] not in ACTIVE,
+                                     -(r["elapsed"] if r["state"] in ACTIVE else 0),
+                                     r["finished_ago"] or 0))
+            working = [r for r in rows if r["state"] in ACTIVE]
+            return {
+                "rows": rows, "idle": idle,
+                "notices": [n for k, n in self.notices.items() if not k.startswith("_")],
+                "summary": {"working": len(working),
+                            "tps": round(sum(r["tps"] or 0 for r in working), 1),
+                            "tokens": sum(r["tokens"] or 0 for r in rows)},
+                "now": now,
+            }
+
+
+# ---------------------------------------------------------------- 本机 HTTP 接口
+def make_server(store, host="127.0.0.1", port=47823):
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, code, body=b""):
+            self.send_response(code)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Private-Network", "true")
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_OPTIONS(self):
+            self._send(204)
+
+        def do_GET(self):
+            if self.path.startswith("/ping"):
+                return self._send(200, b'{"ok":true}')
+            if self.path.startswith("/state"):
+                return self._send(200, json.dumps(store.view(), ensure_ascii=False).encode())
+            self._send(404)
+
+        def do_POST(self):
+            if not self.path.startswith("/event"):
+                return self._send(404)
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                ev = json.loads(self.rfile.read(min(n, 256 * 1024)) or b"{}")
+                if not isinstance(ev, dict) or not ev.get("session"):
+                    raise ValueError
+                if str(ev["session"]).startswith("ext:"):
+                    store.apply_ext_event(ev)
+                else:
+                    store.apply_agent_event(ev, origin="hook")
+            except Exception:
+                return self._send(400, b'{"ok":false}')
+            self._send(200, b'{"ok":true}')
+
+        def log_message(self, *a):
+            pass
+
+    srv = ThreadingHTTPServer((host, port), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv

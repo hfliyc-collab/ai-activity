@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "AI 活动 · 浏览器连接器",
+  "version": "0.2.0",
+  "description": "让 macOS 桌面小组件“AI 活动”读取 Claude、ChatGPT 等网页的精确 token 数（可选）。",
+  "action": {
+    "default_title": "AI 活动"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "http://127.0.0.1:47823/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*",
+        "https://chat.deepseek.com/*",
+        "https://kimi.moonshot.cn/*",
+        "https://www.kimi.com/*",
+        "https://www.doubao.com/*",
+        "https://grok.com/*",
+        "https://chat.qwen.ai/*",
+        "https://www.tongyi.com/*",
+        "https://yuanbao.tencent.com/*",
+        "https://chat.mistral.ai/*",
+        "https://www.perplexity.ai/*"
+      ],
+      "js": [
+        "inject.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://gemini.google.com/*",
+        "https://chat.deepseek.com/*",
+        "https://kimi.moonshot.cn/*",
+        "https://www.kimi.com/*",
+        "https://www.doubao.com/*",
+        "https://grok.com/*",
+        "https://chat.qwen.ai/*",
+        "https://www.tongyi.com/*",
+        "https://yuanbao.tencent.com/*",
+        "https://chat.mistral.ai/*",
+        "https://www.perplexity.ai/*"
+      ],
+      "js": [
+        "sites.js",
+        "bridge.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}
