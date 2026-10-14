@@ -290,7 +290,9 @@ document.getElementById('idleWrap').addEventListener('click', (e) => {
 });
 
 /* ---------- 主渲染（由原生层每 0.5 秒调用） ---------- */
+let lastRender = 0;
 window.render = function (v) {
+  lastRender = Date.now();
   if (typeof v === 'string') v = JSON.parse(v);
   const list = document.getElementById('list');
   const keys = v.rows.map((r) => r.key);
@@ -317,6 +319,14 @@ window.render = function (v) {
 /* 告诉原生层内容高度，窗口随之伸缩 */
 new ResizeObserver(() => send({ type: 'height', h: Math.ceil(document.getElementById('app').getBoundingClientRect().height) }))
   .observe(document.getElementById('app'));
+
+/* 兜底：原生层 1.5 秒没有推送数据时，页面自己向本机接口取数据 */
+if (bridge) {
+  setInterval(() => {
+    if (Date.now() - lastRender < 1500) return;
+    fetch('http://127.0.0.1:47823/state').then((r) => r.json()).then((v) => { window.render(v); lastRender = 0; }).catch(() => {});
+  }, 1000);
+}
 
 /* 在普通浏览器里打开时显示演示数据，方便调整样式 */
 if (!bridge) {

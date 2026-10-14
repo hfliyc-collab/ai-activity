@@ -19,6 +19,10 @@ from AppKit import (NSApplication, NSBezierPath, NSColor, NSImage, NSMenu,  # no
                     NSMenuItem, NSPanel, NSScreen, NSSound, NSStatusBar, NSView,
                     NSVisualEffectView, NSAppearance, NSAlert)
 from Foundation import NSMakeRect, NSMakeSize, NSObject, NSRunLoop, NSTimer, NSURL  # noqa: E402
+try:
+    from Foundation import NSRunLoopCommonModes  # 值为 "kCFRunLoopCommonModes"
+except ImportError:
+    NSRunLoopCommonModes = "kCFRunLoopCommonModes"
 from PyObjCTools import AppHelper  # noqa: E402
 from WebKit import WKUserContentController, WKWebView, WKWebViewConfiguration  # noqa: E402
 
@@ -172,8 +176,9 @@ class Controller(NSObject):
             panel.orderFrontRegardless()
         self.build_status_item()
 
-        timer = NSTimer.timerWithTimeInterval_target_selector_userInfo_repeats_(0.5, self, "tick:", None, True)
-        NSRunLoop.currentRunLoop().addTimer_forMode_(timer, "NSRunLoopCommonModes")
+        # scheduled 版本会自动加入默认模式；再加入 common modes，菜单打开时也继续刷新
+        timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(0.5, self, "tick:", None, True)
+        NSRunLoop.currentRunLoop().addTimer_forMode_(timer, NSRunLoopCommonModes)
         self.timer = timer
 
     @objc.python_method
@@ -194,6 +199,13 @@ class Controller(NSObject):
 
     # ------------------------------------------------------------ 刷新
     def tick_(self, timer):
+        try:
+            self.refresh()
+        except Exception as e:  # 刷新出错不能让定时器停掉
+            print("refresh error:", e, file=sys.stderr)
+
+    @objc.python_method
+    def refresh(self):
         v = self.store.view()
         payload = json.dumps(json.dumps(v, ensure_ascii=False))
         self.web.evaluateJavaScript_completionHandler_(f"window.render && window.render({payload})", None)

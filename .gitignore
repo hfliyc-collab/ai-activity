@@ -1,9 +1,6 @@
-.DS_Store
 __pycache__/
-*.py[cod]
-*.egg-info/
+*.pyc
 .venv/
 venv/
-.env
-.env.*
-*.log
+.DS_Store
+*.bak-*
