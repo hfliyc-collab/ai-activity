@@ -30,8 +30,16 @@ CLAUDE_EVENTS = [("UserPromptSubmit", "start", None), ("PostToolUse", "progress"
                  ("Notification", "waiting", None), ("Stop", "stop", None)]
 
 
+def _arg(path):
+    if sys.platform == "win32":
+        # 正斜杠 + 无空格时不加引号：cmd、PowerShell、Git Bash 都能直接运行
+        path = path.replace("\\", "/")
+        return f'"{path}"' if " " in path else path
+    return f'"{path}"'
+
+
 def command(src, phase):
-    return f'"{sys.executable}" "{HOOK}" {src} {phase}'
+    return f"{_arg(sys.executable)} {_arg(HOOK)} {src} {phase}"
 
 
 def load(path):

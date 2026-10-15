@@ -118,44 +118,58 @@ class Task:
 
 
 class WebTab:
-    """单个网页标签的探测状态机（基于 DOM 探测结果判断开始/结束）。"""
+    """单个网页标签的状态机。按时间判断，兼容固定轮询（macOS）和不定期上报（浏览器扩展）。"""
+    QUIET = 2.4                    # 不忙且字数不再增长这么久，视为完成
 
     def __init__(self, key, site):
         self.task = Task(key, "web", site["id"])
         self.task.label = site["label"]
         self.last = None              # 上一次探测 (n, count, est)
-        self.base = None              # 开始生成前的 (n, count, est)
-        self.grow_streak = 0
-        self.calm = None              # 最近一次“没在增长”时的数值，作为本轮起点
-        self.quiet = 0
+        self.base = None              # 本轮开始前的 (n, count, est)
+        self.calm = None              # 最近一次“没在增长”时的数值
+        self.grow_at = []             # 最近几次增长的时间
+        self.last_active = 0.0
+        self.last_busy = False
+        self.last_report = 0.0
         self.seen_by_poll = False
-        self.ext_until = 0.0          # Chrome 扩展在此之前接管状态
+        self.via_ext = False
+        self.tab_id = None
+        self.ext_until = 0.0          # 扩展的流式数据在此之前接管状态
         self.probe_ok = False
 
     def on_probe(self, p, now):
         """返回需要应用到 task 的事件，或 None。"""
         n, cnt, est, busy = int(p.get("n") or 0), int(p.get("count") or 0), \
             int(p.get("est") or 0), bool(p.get("busy"))
-        grew = self.last is not None and (n > self.last[0] or cnt > self.last[1]) \
-            and (self.last[1] > 0 or busy)
-        self.grow_streak = self.grow_streak + 1 if grew else 0
-        prev_last, self.last = self.last, (n, cnt, est)
-        if not grew and self.task.state not in ACTIVE:
-            self.calm = self.last
+        prev = self.last
+        grew_text = prev is not None and n > prev[0] and cnt == prev[1] and prev[1] > 0
+        grew_new = prev is not None and cnt > prev[1] and (busy or prev[1] > 0)
+        grew = grew_text or grew_new
+        self.last, self.last_busy, self.last_report = (n, cnt, est), busy, now
         t = self.task
+        if grew_text or (grew_new and busy):
+            self.grow_at = [x for x in self.grow_at if now - x < 4] + [now]
+        if not grew and t.state not in ACTIVE:
+            self.calm = self.last
+        if busy or grew:
+            self.last_active = now
         if now < self.ext_until:
             return None
         if t.state not in ACTIVE:
-            if busy or self.grow_streak >= 2:
-                self.base = (self.calm if self.grow_streak >= 2 else prev_last) or prev_last or (0, 0, 0)
-                self.quiet = 0
+            recent = [x for x in self.grow_at if now - x < 4]
+            if busy or len(recent) >= 2:
+                self.base = (prev if busy else (self.calm or prev)) or (0, 0, 0)
+                self.grow_at = []
                 return {"state": "working", "tokens_out": self._tokens(), "est": True}
             return None
         if busy or grew:
-            self.quiet = 0
             return {"state": "working", "tokens_out": self._tokens(), "est": True}
-        self.quiet += 1
-        if self.quiet >= 2:
+        return self.check_done(now)
+
+    def check_done(self, now):
+        if self.task.state == "working" and self.last is not None and not self.last_busy \
+                and now - self.last_active >= self.QUIET and now >= self.ext_until:
+            self.grow_at = []
             return {"state": "done", "tokens_out": self._tokens(), "est": True}
         return None
 
@@ -176,6 +190,41 @@ class Store:
         self.notices = {}
         self.on_finish = on_finish
         self.started = time.time()
+        self.ext_seen = 0.0           # 最近一次收到浏览器扩展消息
+        self.running_browsers = set() # Windows：正在运行的 Chromium 浏览器
+        self.commands = []            # 发给浏览器扩展的指令（切换标签页）
+
+    def start_ticker(self, interval=0.5):
+        def loop():
+            while True:
+                time.sleep(interval)
+                try:
+                    self.tick()
+                except Exception:
+                    pass
+        threading.Thread(target=loop, daemon=True).start()
+
+    def tick(self, now=None):
+        """时间驱动的检查：生成结束、长时间没有上报的扩展标签页。"""
+        now = now or time.time()
+        with self.lock:
+            for key in list(self.web):
+                wt = self.web[key]
+                ev = wt.check_done(now)
+                if ev and wt.task.apply(ev, now):
+                    self._finished(wt.task, now)
+                if wt.via_ext and not wt.seen_by_poll and wt.task.state not in ACTIVE \
+                        and now - max(wt.last_report, wt.task.updated) > 150:
+                    del self.web[key]
+
+    def set_running_browsers(self, names):
+        with self.lock:
+            self.running_browsers = set(names)
+
+    def take_commands(self):
+        with self.lock:
+            cmds, self.commands = self.commands, []
+            return cmds
 
     # ---- 通知/权限提示
     def set_notice(self, name, kind, detail=""):
@@ -239,11 +288,14 @@ class Store:
     def apply_ext_event(self, ev, now=None):
         now = now or time.time()
         with self.lock:
+            self.ext_seen = now
             tab_id = ev["session"]
             if ev.get("state") == "remove":
                 key = self.ext_tabs.pop(tab_id, None)
                 if key and key in self.web and not self.web[key].seen_by_poll:
                     del self.web[key]
+                return
+            if ev.get("kind") == "hello":
                 return
             url = ev.get("url") or ""
             site = site_for_url(url)
@@ -252,17 +304,34 @@ class Store:
             key = "web:" + norm_url(url)
             old = self.ext_tabs.get(tab_id)
             if old and old != key and old in self.web and not self.web[old].seen_by_poll:
-                del self.web[old]      # 新对话在发送后改了网址
+                moved = self.web.pop(old)          # 同一标签页换了网址（新对话发送后）：保留状态
+                if key not in self.web:
+                    moved.task.key = key
+                    moved.task.url = url
+                    self.web[key] = moved
             self.ext_tabs[tab_id] = key
             wt = self.web.get(key)
             if wt is None:
                 wt = self.web[key] = WebTab(key, site)
-                wt.task.browser = wt.task.place = ev.get("browser") or "Chrome"
-            wt.ext_until = now + 15
+            wt.via_ext = True
+            wt.tab_id = ev.get("tab_id", wt.tab_id)
             t = wt.task
-            t.url = t.url or url
-            ev = dict(ev)
+            if not wt.seen_by_poll:
+                t.browser = t.place = ev.get("browser") or t.browser or "Chrome"
+                t.url = url
             title = clean_title(ev.get("title"), site["label"])
+            if ev.get("kind") == "probe":
+                wt.probe_ok = True
+                if title:
+                    t.title = title
+                e2 = wt.on_probe(ev.get("probe") or {}, now)
+                if e2 and t.apply(e2, now):
+                    self._finished(t, now)
+                return
+            wt.ext_until = now + 15
+            ev = dict(ev)
+            for k in ("kind", "probe", "tab_id", "browser", "url"):
+                ev.pop(k, None)
             if title:
                 ev["title"] = title
             else:
@@ -311,8 +380,12 @@ class Store:
     def target_of(self, key):
         with self.lock:
             if key in self.web:
-                t = self.web[key].task
-                return ("tab", t.browser, t.url)
+                wt = self.web[key]
+                if wt.seen_by_poll:
+                    return ("tab", wt.task.browser, wt.task.url)
+                if wt.tab_id is not None:
+                    return ("ext", wt.tab_id)
+                return None
             if key in self.agents:
                 src = self.agents[key].site
                 return ("app", "Cursor") if src == "cursor" else None
@@ -323,8 +396,13 @@ class Store:
         return None
 
     # ---- 视图
+    def queue_focus(self, tab_id):
+        with self.lock:
+            self.commands.append({"type": "focus", "tab": tab_id})
+
     def view(self, now=None):
         now = now or time.time()
+        self.tick(now)
         with self.lock:
             rows, idle = [], []
             for wt in self.web.values():
@@ -359,7 +437,9 @@ class Store:
             working = [r for r in rows if r["state"] in ACTIVE]
             return {
                 "rows": rows, "idle": idle,
-                "notices": [n for k, n in self.notices.items() if not k.startswith("_")],
+                "notices": [n for k, n in self.notices.items() if not k.startswith("_")] + (
+                    [{"name": " / ".join(sorted(self.running_browsers)), "kind": "ext"}]
+                    if self.running_browsers and now - self.ext_seen > 20 and now - self.started > 8 else []),
                 "summary": {"working": len(working),
                             "tps": round(sum(r["tps"] or 0 for r in working), 1),
                             "tokens": sum(r["tokens"] or 0 for r in rows)},
@@ -368,41 +448,77 @@ class Store:
 
 
 # ---------------------------------------------------------------- 本机 HTTP 接口
-def make_server(store, host="127.0.0.1", port=47823):
+def make_server(store, host="127.0.0.1", port=47823, ui_dir=None, on_action=None):
+    """本机接口：
+    POST /event   浏览器扩展、hooks、任何工具推送状态（扩展收到的回复里带待执行的指令）
+    GET  /state   当前汇总数据
+    GET  /        界面（Windows 版窗口直接加载这里）
+    POST /action  界面上的操作（点击条目、窗口高度）
+    """
+    import mimetypes
+    import os
+
     class Handler(BaseHTTPRequestHandler):
-        def _send(self, code, body=b""):
+        def _send(self, code, body=b"", ctype="application/json"):
             self.send_response(code)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.send_header("Access-Control-Allow-Private-Network", "true")
-            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+        def _json(self):
+            n = int(self.headers.get("Content-Length") or 0)
+            data = json.loads(self.rfile.read(min(n, 256 * 1024)) or b"{}")
+            if not isinstance(data, dict):
+                raise ValueError
+            return data
 
         def do_OPTIONS(self):
             self._send(204)
 
         def do_GET(self):
-            if self.path.startswith("/ping"):
+            path = self.path.split("?")[0]
+            if path.startswith("/ping"):
                 return self._send(200, b'{"ok":true}')
-            if self.path.startswith("/state"):
+            if path.startswith("/state"):
                 return self._send(200, json.dumps(store.view(), ensure_ascii=False).encode())
+            if ui_dir and (path in ("/", "/ui", "/ui/") or path.startswith("/ui/")):
+                name = "index.html" if path in ("/", "/ui", "/ui/") else path[4:]
+                full = os.path.realpath(os.path.join(ui_dir, name))
+                if full.startswith(os.path.realpath(ui_dir)) and os.path.isfile(full):
+                    with open(full, "rb") as f:
+                        ctype = mimetypes.guess_type(full)[0] or "application/octet-stream"
+                        if ctype.startswith("text/"):
+                            ctype += "; charset=utf-8"
+                        return self._send(200, f.read(), ctype)
             self._send(404)
 
         def do_POST(self):
-            if not self.path.startswith("/event"):
+            path = self.path.split("?")[0]
+            try:
+                data = self._json()
+            except Exception:
+                return self._send(400, b'{"ok":false}')
+            if path.startswith("/action"):
+                if on_action:
+                    try:
+                        on_action(data)
+                    except Exception:
+                        pass
+                return self._send(200, b'{"ok":true}')
+            if not path.startswith("/event") or not data.get("session"):
                 return self._send(404)
             try:
-                n = int(self.headers.get("Content-Length") or 0)
-                ev = json.loads(self.rfile.read(min(n, 256 * 1024)) or b"{}")
-                if not isinstance(ev, dict) or not ev.get("session"):
-                    raise ValueError
-                if str(ev["session"]).startswith("ext:"):
-                    store.apply_ext_event(ev)
-                else:
-                    store.apply_agent_event(ev, origin="hook")
+                if str(data["session"]).startswith("ext:"):
+                    store.apply_ext_event(data)
+                    body = {"ok": True, "cmd": store.take_commands()}
+                    return self._send(200, json.dumps(body).encode())
+                store.apply_agent_event(data, origin="hook")
             except Exception:
                 return self._send(400, b'{"ok":false}')
             self._send(200, b'{"ok":true}')

@@ -83,7 +83,7 @@ def claude_code_usage(path):
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else "agent"
     phase = sys.argv[2] if len(sys.argv) > 2 else "progress"
-    raw = sys.stdin.read()
+    raw = sys.stdin.buffer.read().decode("utf-8", "replace")   # Windows 管道默认不是 UTF-8
     try:
         d = json.loads(raw) if raw.strip() else {}
     except ValueError:

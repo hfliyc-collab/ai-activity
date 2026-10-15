@@ -7,9 +7,12 @@ import glob
 import json
 import os
 import subprocess
+import sys
 import threading
 import time
 from datetime import datetime
+
+IS_WIN = sys.platform == "win32"
 
 from sites import APPS
 
@@ -163,6 +166,13 @@ class LocalScanner(threading.Thread):
             self.store.apply_agent_event(ev, origin="scanner")
 
     def scan_processes(self):
+        if IS_WIN:
+            paths = win_process_paths()
+            running = {k for k, rule in WIN_APPS.items() if any(rule(p) for p in paths)}
+            names = {os.path.basename(p) for p in paths}
+            self.store.set_running_apps(running)
+            self.store.set_running_browsers({v for k, v in WIN_BROWSERS.items() if k in names})
+            return
         try:
             out = subprocess.run(["ps", "-axo", "comm="], capture_output=True, text=True,
                                  timeout=5).stdout.splitlines()
@@ -176,3 +186,46 @@ class LocalScanner(threading.Thread):
                                            for line in out):
                 running.add(a["id"])
         self.store.set_running_apps(running)
+
+
+# ---------------------------------------------------------------- Windows 进程识别
+WIN_APPS = {
+    "cursor": lambda p: p.endswith("\\cursor.exe"),
+    "claude-app": lambda p: p.endswith("\\claude.exe") and "anthropicclaude" in p,
+    "chatgpt-app": lambda p: p.endswith("\\chatgpt.exe"),
+    "claude-code": lambda p: p.endswith("\\claude.exe") and "anthropicclaude" not in p,
+}
+WIN_BROWSERS = {"chrome.exe": "Chrome", "msedge.exe": "Edge", "brave.exe": "Brave"}
+
+
+def win_process_paths():
+    """列出所有进程的可执行文件完整路径（小写）。只用 ctypes，不需要额外安装。"""
+    import ctypes
+    from ctypes import wintypes
+    psapi = ctypes.WinDLL("psapi")
+    k32 = ctypes.WinDLL("kernel32")
+    psapi.EnumProcesses.argtypes = [ctypes.POINTER(wintypes.DWORD), wintypes.DWORD,
+                                    ctypes.POINTER(wintypes.DWORD)]
+    k32.OpenProcess.restype = wintypes.HANDLE
+    k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    k32.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                                               ctypes.POINTER(wintypes.DWORD)]
+    k32.CloseHandle.argtypes = [wintypes.HANDLE]
+    pids = (wintypes.DWORD * 8192)()
+    needed = wintypes.DWORD()
+    if not psapi.EnumProcesses(pids, ctypes.sizeof(pids), ctypes.byref(needed)):
+        return []
+    out, buf = [], ctypes.create_unicode_buffer(1024)
+    for pid in pids[: needed.value // ctypes.sizeof(wintypes.DWORD)]:
+        if not pid:
+            continue
+        h = k32.OpenProcess(0x1000, False, pid)        # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            continue
+        try:
+            size = wintypes.DWORD(len(buf))
+            if k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
+                out.append(buf.value.lower())
+        finally:
+            k32.CloseHandle(h)
+    return out
