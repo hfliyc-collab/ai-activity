@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AI 活动 · 设置</title>
+<style>
+:root { color-scheme: light dark;
+  --bg: #F5F5F7; --card: #FFFFFF; --label: rgba(0,0,0,.86); --label2: rgba(60,60,67,.62); --label3: rgba(60,60,67,.36);
+  --sep: rgba(0,0,0,.08); --blue: #007AFF; --fill: rgba(120,120,128,.12); --sel: rgba(0,122,255,.1);
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif; }
+@media (prefers-color-scheme: dark) { :root { --bg: #1C1C1E; --card: #2C2C2E; --label: rgba(255,255,255,.92); --label2: rgba(235,235,245,.6);
+  --label3: rgba(235,235,245,.3); --sep: rgba(255,255,255,.08); --blue: #0A84FF; --fill: rgba(120,120,128,.24); --sel: rgba(10,132,255,.18); } }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font: 13px/1.4 var(--sans); background: var(--bg); color: var(--label); -webkit-font-smoothing: antialiased; padding: 22px 24px 30px; }
+h2 { font-size: 12px; font-weight: 600; color: var(--label2); margin: 20px 4px 8px; }
+h2:first-child { margin-top: 0; }
+.card { background: var(--card); border-radius: 12px; box-shadow: 0 0 0 .5px var(--sep); overflow: hidden; }
+.item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; min-height: 44px; }
+.item + .item { border-top: .5px solid var(--sep); }
+.item .grow { flex: 1; min-width: 0; }
+.item .t { font-weight: 500; } .item .d { font-size: 11.5px; color: var(--label2); margin-top: 2px; }
+button, input { font: inherit; color: inherit; }
+.btn { height: 26px; padding: 0 12px; border-radius: 7px; border: 0; background: var(--fill); cursor: pointer; white-space: nowrap; }
+.btn:hover { filter: brightness(1.08); } .btn.primary { background: var(--blue); color: #fff; }
+.modes { display: grid; grid-template-columns: repeat(var(--n, 3), 1fr); gap: 10px; }
+.mode { background: var(--card); border-radius: 12px; padding: 12px; cursor: pointer; box-shadow: 0 0 0 .5px var(--sep); }
+.mode.on { box-shadow: 0 0 0 2px var(--blue); background: var(--sel); }
+.mode .pic { height: 64px; border-radius: 8px; background: linear-gradient(160deg, #7AA7FF, #C08BEF 60%, #F2A07B); position: relative; overflow: hidden; margin-bottom: 9px; }
+.mode .pic i { position: absolute; background: rgba(20,20,22,.88); }
+.p-island i { left: 50%; top: 0; width: 46%; height: 13px; transform: translateX(-50%); border-radius: 0 0 7px 7px; }
+.p-menubar::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 9px; background: rgba(255,255,255,.45); }
+.p-menubar i { right: 10%; top: 12px; width: 44%; height: 40px; border-radius: 6px; }
+.p-sidebar i { right: 7%; top: 9px; width: 30%; height: 46px; border-radius: 6px; }
+.p-tray::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 9px; background: rgba(255,255,255,.45); }
+.p-tray i { right: 6%; bottom: 12px; width: 44%; height: 38px; border-radius: 6px; }
+.mode .t { font-weight: 600; } .mode .d { font-size: 11px; color: var(--label2); margin-top: 2px; }
+.acc { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+.acc + .acc { border-top: .5px solid var(--sep); }
+.acc.drag { opacity: .4; } .acc.over { box-shadow: inset 0 2px 0 var(--blue); }
+.handle { color: var(--label3); cursor: grab; font-size: 14px; letter-spacing: -2px; }
+.mini { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: #fff; font: 600 11px/1 var(--sans);
+  background: linear-gradient(145deg, var(--a), var(--b)); flex: none; }
+.acc .nm { flex: 1; min-width: 0; } .acc .nm .t { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acc .nm .d { font-size: 11px; color: var(--label2); }
+.acc .hl { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 56px; text-align: right; }
+.icon-btn { width: 24px; height: 24px; border-radius: 6px; border: 0; background: transparent; color: var(--label2); cursor: pointer; }
+.icon-btn:hover { background: var(--fill); color: var(--label); } .icon-btn[disabled] { opacity: .25; pointer-events: none; }
+.star { color: var(--label3); } .star.on { color: #FFB800; }
+.empty { padding: 14px; font-size: 12px; color: var(--label2); line-height: 1.6; }
+.switch { position: relative; width: 38px; height: 22px; flex: none; }
+.switch input { display: none; }
+.switch span { position: absolute; inset: 0; border-radius: 11px; background: var(--fill); transition: background .2s; cursor: pointer; }
+.switch span::after { content: ""; position: absolute; left: 2px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
+.switch input:checked + span { background: #34C759; } .switch input:checked + span::after { transform: translateX(16px); }
+.key { width: 210px; height: 26px; border-radius: 7px; border: .5px solid var(--sep); background: var(--bg); padding: 0 9px; font-size: 12px; }
+.ok { font-size: 11.5px; color: #34C759; white-space: nowrap; }
+.seg { display: inline-flex; background: var(--fill); border-radius: 8px; padding: 2px; }
+.seg button { border: 0; background: transparent; height: 24px; padding: 0 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.seg button.on { background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+.comp-prev { display: flex; gap: 14px; }
+.comp-prev div { width: 44px; text-align: center; font-size: 10.5px; color: var(--label2); }
+.comp-prev svg { width: 44px; height: 44px; }
+.focus-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.note { font-size: 11px; color: var(--label3); margin: 8px 6px 0; line-height: 1.55; }
+.sparrow .sp-head { transform-origin: 40px 30px; } .sparrow .sp-all { transform-origin: 32px 56px; }
+.sparrow .eye-c, .sparrow .bub { opacity: 0; }
+.c-idle .eye-o { opacity: 0; } .c-idle .eye-c { opacity: 1; } .c-idle .sp-all { animation: b 3.2s ease-in-out infinite; } .c-idle .bub-z { opacity: 1; }
+.c-working .sp-head { animation: pk .55s ease-in-out infinite; } .c-waiting .sp-head { transform: rotate(-10deg); } .c-waiting .bub-q { opacity: 1; }
+.c-done .sp-all { animation: hp .8s cubic-bezier(.3,1.6,.5,1) infinite; } .c-done .bub-n { opacity: 1; }
+@keyframes b { 50% { transform: scale(1.03, .98); } } @keyframes pk { 40% { transform: rotate(16deg) translate(1px, 2px); } }
+@keyframes hp { 45% { transform: translateY(-6px); } }
+</style>
+</head>
+<body>
+<h2>显示方式</h2>
+<div class="modes" id="modes"></div>
+<div class="card" id="side-card" style="margin-top:10px;display:none"><div class="item"><div class="grow"><div class="t">刘海内容位置</div>
+  <div class="d">自动避让只用确认空着的位置，放不下时额度显示在菜单栏 ✦ 旁；也可以固定在一侧</div></div><div class="seg" id="side"></div></div></div>
+
+<h2>额度账号</h2>
+<div class="card" id="accts"></div>
+<p class="note">拖动左侧把手或用箭头调整顺序；打勾的账号会显示出来；星标是主账号，刘海和菜单栏显示它的额度。账号会在打开 claude.ai 或填写下面的密钥后自动出现。</p>
+
+<h2>额度来源</h2>
+<div class="card">
+  <div class="item"><div class="grow"><div class="t">Claude 订阅（网页、桌面版）</div><div class="d">打开已登录的 claude.ai 页面即可自动读取 5 小时和每周用量</div></div><span class="ok">自动</span></div>
+  <div class="item"><div class="grow"><div class="t">Claude Code 订阅</div><div class="d">读取本机 Claude Code 的登录信息来查询用量；只在本机使用，不保存副本</div></div>
+    <label class="switch"><input type="checkbox" data-ui="quota_claude_code"><span></span></label></div>
+  <div class="item"><div class="grow"><div class="t">DeepSeek API 余额</div><div class="d">填写你的 API Key，保存在本机<span class="kc"></span></div></div>
+    <span class="ok" id="ok-deepseek"></span><input class="key" id="k-deepseek" type="password" placeholder="sk-…" autocomplete="off">
+    <button class="btn" data-save="deepseek">保存</button></div>
+  <div class="item"><div class="grow"><div class="t">Kimi（月之暗面）API 余额</div><div class="d">填写你的 API Key，保存在本机<span class="kc"></span></div></div>
+    <span class="ok" id="ok-moonshot"></span><input class="key" id="k-moonshot" type="password" placeholder="sk-…" autocomplete="off">
+    <button class="btn" data-save="moonshot">保存</button></div>
+</div>
+<p class="note">ChatGPT、Gemini、Cursor、豆包等目前没有可靠的官方额度接口，只显示工作状态，不显示估算的额度。</p>
+
+<h2>桌面客户端</h2>
+<div class="card">
+  <div class="item"><div class="grow"><div class="t">监测桌面客户端</div><div class="d">Kimi、豆包、元宝、通义、智谱清言、文小言、DeepSeek、ChatGPT、Claude 等客户端的生成状态</div></div>
+    <label class="switch"><input type="checkbox" data-ui="clients_on"><span></span></label></div>
+  <div class="item" id="ax-row"><div class="grow"><div class="t">辅助功能权限</div><div class="d" id="ax-d"></div></div><button class="btn" id="ax-btn">打开系统设置</button></div>
+</div>
+
+<h2>绘本伙伴</h2>
+<div class="card">
+  <div class="item"><div class="grow"><div class="t">小麻雀</div><div class="d">陪你等 AI：空闲时打盹，生成时啄键盘，等你确认时探头，完成时跳一下</div></div>
+    <label class="switch"><input type="checkbox" data-ui="companion"><span></span></label></div>
+  <div class="item"><div class="comp-prev" id="cprev"></div></div>
+</div>
+
+<h2>专注</h2>
+<div class="card"><div class="item"><div class="grow"><div class="t" id="focus-t">临时隐藏小组件</div><div class="d" id="focus-d">隐藏期间不弹提醒，到时间自动恢复；也可以从菜单栏随时恢复</div></div></div>
+  <div class="item"><div class="focus-row" id="focus-btns"></div></div></div>
+
+<h2>其他</h2>
+<div class="card">
+  <div class="item" id="ap-row"><div class="grow"><div class="t">外观</div></div><div class="seg" id="ap"></div></div>
+  <div class="item"><div class="grow"><div class="t">完成时提醒</div><div class="d">系统通知加提示音</div></div><label class="switch"><input type="checkbox" data-ui="sound"><span></span></label></div>
+</div>
+<p class="note">位置、外观、账号选择和顺序都保存在本机。</p>
+
+<script>
+const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.aiw;
+const HTTP = !bridge && location.protocol.startsWith('http');
+const send = (o) => (o = Object.assign({ view: 'settings' }, o), bridge) ? bridge.postMessage(JSON.stringify(o))
+  : HTTP ? fetch('/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) }).catch(() => {}) : null;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const setHTML = (el, h) => { if (el.dataset.h !== h) { el.innerHTML = h; el.dataset.h = h; } };
+const MODES = {
+  island: ['刘海', '常驻灵动岛，显示活动和额度百分比，悬停展开', 'p-island'],
+  menubar: ['菜单栏', '菜单栏显示额度，点击查看一个账号', 'p-menubar'],
+  sidebar: ['侧边栏', '同时排列已选账号和任务，可拖到任意显示器', 'p-sidebar'],
+  tray: ['托盘', '任务栏托盘显示额度，点击弹出一个账号', 'p-tray'],
+};
+const SP = (cls) => `<svg class="sparrow ${cls}" viewBox="0 0 64 64"><g class="sp-all"><path d="M10 42 L2 50 L13 49 Z" fill="#7A4E2C"/><ellipse cx="29" cy="41" rx="19" ry="15" fill="#B7834F"/><ellipse cx="33" cy="46" rx="12" ry="9" fill="#F2E2C4"/><path d="M15 37 Q24 29 35 37 Q27 48 15 44 Z" fill="#8B5B35"/><path d="M27 55 v5 M33 55 v5" stroke="#C98B46" stroke-width="1.8" stroke-linecap="round"/><g class="sp-head"><circle cx="40" cy="27" r="13" fill="#B7834F"/><path d="M28 24 Q34 12 47 15 Q42 20 31 27 Z" fill="#7A4E2C"/><circle cx="45" cy="31" r="3.2" fill="#F3A68F" opacity=".75"/><g class="eye-o"><circle cx="44" cy="25" r="2.7" fill="#2B1E16"/><circle cx="45" cy="24" r=".9" fill="#fff"/></g><path class="eye-c" d="M41.5 25.5 Q44 27.5 46.5 25.5" stroke="#2B1E16" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M52 26 L60 28.5 L52 31 Z" fill="#E9A23B"/></g></g><text class="bub bub-z" x="52" y="12" font-size="10" font-weight="700" fill="#8E8E93">z</text><text class="bub bub-q" x="53" y="13" font-size="13" font-weight="800" fill="#FF9F0A">?</text><text class="bub bub-n" x="52" y="13" font-size="12" font-weight="800" fill="#30D158">♪</text></svg>`;
+$('cprev').innerHTML = [['c-idle', '空闲'], ['c-working', '生成中'], ['c-waiting', '等你'], ['c-done', '完成']].map(([c, t]) => `<div>${SP(c)}${t}</div>`).join('');
+
+let V = null, order = [];
+function render(v) {
+  if (typeof v === 'string') v = JSON.parse(v);
+  V = v; const ui = v.ui || {}, prefs = v.prefs || {};
+  const modes = ui.modes_available || ['island', 'menubar', 'sidebar'];
+  $('modes').style.setProperty('--n', modes.length);
+  setHTML($('modes'), modes.map((m) => `<div class="mode ${ui.mode === m ? 'on' : ''}" data-mode="${m}"><div class="pic ${MODES[m][2]}"><i></i></div><div class="t">${MODES[m][0]}</div><div class="d">${MODES[m][1]}</div></div>`).join(''));
+  $('side-card').style.display = ui.mode === 'island' && ui.platform === 'mac' ? '' : 'none';
+  setHTML($('side'), [['auto', '自动避让'], ['left', '左侧'], ['right', '右侧']].map(([k, t]) =>
+    `<button data-side="${k}" class="${(ui.island_side || 'auto') === k ? 'on' : ''}">${t}</button>`).join(''));
+  const accts = v.accounts || []; order = accts.map((a) => a.id);
+  const hidden = new Set(prefs.hidden || []), primary = (v.primary || {}).id;
+  setHTML($('accts'), accts.length ? accts.map((a, i) => `<div class="acc" draggable="true" data-id="${esc(a.id)}">
+      <span class="handle">⋮⋮</span><input type="checkbox" data-show="${esc(a.id)}" ${hidden.has(a.id) ? '' : 'checked'}>
+      <span class="mini" style="--a:${a.tint[0]};--b:${a.tint[1]}">${esc(a.glyph)}</span>
+      <div class="nm"><div class="t">${esc(a.name)}</div><div class="d">${esc(a.label)}${a.error ? ' · ' + esc(a.error) : ''}</div></div>
+      <span class="hl">${esc(a.headline)}</span>
+      <button class="icon-btn star ${a.id === primary ? 'on' : ''}" data-primary="${esc(a.id)}" title="设为主账号">★</button>
+      <button class="icon-btn" data-mv="-1" data-i="${i}" ${i === 0 ? 'disabled' : ''}>↑</button>
+      <button class="icon-btn" data-mv="1" data-i="${i}" ${i === accts.length - 1 ? 'disabled' : ''}>↓</button></div>`).join('')
+    : '<div class="empty">还没有额度账号。打开已登录的 claude.ai，或在下方填写 DeepSeek / Kimi 的 API Key，账号会自动出现在这里。</div>');
+  document.querySelectorAll('[data-ui]').forEach((el) => { const k = el.dataset.ui; if (document.activeElement !== el) el.checked = !!ui[k]; });
+  for (const n of ['deepseek', 'moonshot']) $('ok-' + n).textContent = (ui.secrets || {})[n] ? '已保存' : '';
+  document.querySelectorAll('.kc').forEach((e) => { e.textContent = ui.platform === 'mac' ? '（钥匙串）' : ''; });
+  $('ax-row').style.display = ui.platform === 'mac' ? '' : 'none';
+  $('ax-d').textContent = ui.ax_trusted ? '已允许' : '未允许：读取客户端需要在 系统设置 › 隐私与安全性 › 辅助功能 里打开“AI 活动”';
+  $('ap-row').style.display = ui.platform === 'mac' ? '' : 'none';
+  setHTML($('ap'), [['auto', '跟随系统'], ['dark', '深色'], ['light', '浅色']].map(([k, t]) => `<button data-ap="${k}" class="${(ui.appearance || 'auto') === k ? 'on' : ''}">${t}</button>`).join(''));
+  const left = ui.focus_until ? Math.max(0, ui.focus_until - Date.now() / 1000) : 0;
+  $('focus-t').textContent = left > 0 ? `专注中，还剩 ${Math.ceil(left / 60)} 分钟` : '临时隐藏小组件';
+  setHTML($('focus-btns'), left > 0 ? '<button class="btn primary" data-unfocus>立即显示</button>'
+    : [[15, '15 分钟'], [60, '1 小时'], [180, '3 小时'], [300, '5 小时']].map(([m, t]) => `<button class="btn" data-focus="${m}">${t}</button>`).join(''));
+}
+window.render = render;
+
+document.body.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-side],[data-mode],[data-primary],[data-mv],[data-save],[data-ap],[data-focus],[data-unfocus],#ax-btn');
+  if (!t) return;
+  if (t.dataset.side) send({ type: 'settings', patch: { island_side: t.dataset.side } });
+  else if (t.dataset.mode) send({ type: 'settings', patch: { mode: t.dataset.mode } });
+  else if (t.dataset.primary) send({ type: 'settings', patch: { primary: t.dataset.primary } });
+  else if (t.dataset.mv) { const i = Number(t.dataset.i), j = i + Number(t.dataset.mv), o = order.slice(); [o[i], o[j]] = [o[j], o[i]]; send({ type: 'settings', patch: { order: o } }); }
+  else if (t.dataset.save) { const n = t.dataset.save, inp = $('k-' + n); send({ type: 'secret', name: n, value: inp.value.trim() }); inp.value = ''; }
+  else if (t.dataset.ap) send({ type: 'settings', patch: { appearance: t.dataset.ap } });
+  else if (t.dataset.focus) send({ type: 'focus', minutes: Number(t.dataset.focus) });
+  else if ('unfocus' in t.dataset) send({ type: 'unfocus' });
+  else if (t.id === 'ax-btn') send({ type: 'open-ax' });
+});
+document.body.addEventListener('change', (e) => {
+  const el = e.target;
+  if (el.dataset.ui) send({ type: 'settings', patch: { [el.dataset.ui]: el.checked } });
+  if (el.dataset.show) {
+    const hidden = new Set((V.prefs || {}).hidden || []); el.checked ? hidden.delete(el.dataset.show) : hidden.add(el.dataset.show);
+    send({ type: 'settings', patch: { hidden: [...hidden] } });
+  }
+});
+let dragId = null;
+$('accts').addEventListener('dragstart', (e) => { const r = e.target.closest('.acc'); if (!r) return; dragId = r.dataset.id; r.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
+$('accts').addEventListener('dragover', (e) => { const r = e.target.closest('.acc'); if (!r) return; e.preventDefault(); document.querySelectorAll('.acc.over').forEach((x) => x.classList.remove('over')); r.classList.add('over'); });
+$('accts').addEventListener('drop', (e) => {
+  e.preventDefault(); const r = e.target.closest('.acc'); if (!r || !dragId) return;
+  const o = order.filter((x) => x !== dragId); o.splice(o.indexOf(r.dataset.id), 0, dragId);
+  send({ type: 'settings', patch: { order: o } }); $('accts').dataset.h = '';
+});
+$('accts').addEventListener('dragend', () => { dragId = null; document.querySelectorAll('.acc').forEach((x) => x.classList.remove('drag', 'over')); });
+
+if (HTTP) { const poll = () => fetch('/state', { cache: 'no-store' }).then((r) => r.json()).then(render).catch(() => {}); poll(); setInterval(poll, 1000); }
+if (!bridge && !HTTP) render({ ui: { mode: 'island', platform: 'mac', companion: true, clients_on: true, quota_claude_code: true, secrets: { moonshot: true }, ax_trusted: false, sound: true },
+  prefs: { primary: 'claude:o1', hidden: [] }, primary: { id: 'claude:o1' },
+  accounts: [{ id: 'claude:o1', name: 'Kevin', label: 'Claude 订阅', glyph: 'C', tint: ['#E8916E', '#C9663F'], headline: '63%' },
+    { id: 'claude-code', name: 'Claude Code', label: 'Claude Code 订阅', glyph: '›_', tint: ['#E8916E', '#B4532E'], headline: '78%' },
+    { id: 'moonshot-api', name: 'Kimi API', label: 'Kimi API 余额', glyph: 'K', tint: ['#5B6478', '#2E3442'], headline: '¥49.58' }] });
+</script>
+</body>
+</html>

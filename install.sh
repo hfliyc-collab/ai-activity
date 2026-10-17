@@ -30,7 +30,7 @@ cp "$SRC/README.md" "$DEST/README.md"
 if [[ ! -x "$DEST/venv/bin/python" ]]; then "$PY" -m venv "$DEST/venv"; fi
 say "安装 PyObjC（首次约 1 分钟）…"
 "$DEST/venv/bin/python" -m pip install -q --upgrade pip
-"$DEST/venv/bin/python" -m pip install -q pyobjc-core pyobjc-framework-Cocoa pyobjc-framework-WebKit pyobjc-framework-Quartz
+"$DEST/venv/bin/python" -m pip install -q pyobjc-core pyobjc-framework-Cocoa pyobjc-framework-WebKit pyobjc-framework-Quartz pyobjc-framework-ApplicationServices
 
 # 4. 生成 “AI 活动.app”（权限弹窗会显示这个名字，也能用聚焦搜索打开）
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -43,7 +43,8 @@ cat > "$APP/Contents/Info.plist" << PLIST
   <key>CFBundleIdentifier</key><string>com.aistatus.widget</string>
   <key>CFBundleExecutable</key><string>launcher</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleShortVersionString</key><string>1.5</string>
+  <key>CFBundleVersion</key><string>1.5</string>
   <key>LSUIElement</key><true/>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
   <key>NSAppleEventsUsageDescription</key><string>读取浏览器里打开的 AI 网页的工作状态，并在点击时切换到对应标签页。</string>

@@ -56,9 +56,9 @@ $VPy  = Join-Path $Venv "Scripts\python.exe"
 $VPyw = Join-Path $Venv "Scripts\pythonw.exe"
 if (-not (Test-Path $VPy)) { & $Py -m venv $Venv }
 if (-not (Test-Path $VPy)) { Fail "创建 Python 虚拟环境失败。" }
-Say "安装依赖（pywebview、pystray、Pillow），首次约 1 分钟…"
+Say "安装依赖（pywebview、pystray、Pillow、uiautomation），首次约 1 分钟…"
 & $VPy -m pip install -q --disable-pip-version-check --upgrade pip
-& $VPy -m pip install -q --disable-pip-version-check pywebview pystray pillow
+& $VPy -m pip install -q --disable-pip-version-check pywebview pystray pillow uiautomation
 if ($LASTEXITCODE -ne 0) { Fail "依赖安装失败。若你的 Python 版本很新，请安装 Python 3.12 后重试。" }
 
 # 4. WebView2 运行库（Windows 11 自带；Windows 10 可能需要安装）

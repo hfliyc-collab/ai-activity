@@ -7,7 +7,15 @@ self.AIW_SITES = {
    "button[aria-label=\"Stop response\"]",
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [
    "[data-is-streaming=\"true\"]"
@@ -18,7 +26,8 @@ self.AIW_SITES = {
    ".font-claude-message",
    "[class*=\"markdown\"]",
    "[class*=\"prose\"]"
-  ]
+  ],
+  "quota": "claude"
  },
  "chatgpt.com": {
   "id": "chatgpt",
@@ -27,7 +36,15 @@ self.AIW_SITES = {
    "[data-testid=\"stop-button\"]",
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -43,7 +60,15 @@ self.AIW_SITES = {
    "[data-testid=\"stop-button\"]",
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -58,12 +83,88 @@ self.AIW_SITES = {
   "stop": [
    "button.stop",
    "button[aria-label*=\"Stop\" i]",
-   "button[aria-label*=\"停止\"]"
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
    "model-response message-content",
    "model-response",
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "grok.com": {
+  "id": "grok",
+  "label": "Grok",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   ".message-bubble",
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "chat.mistral.ai": {
+  "id": "mistral",
+  "label": "Le Chat",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "perplexity.ai": {
+  "id": "perplexity",
+  "label": "Perplexity",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
    "[class*=\"markdown\"]",
    "[class*=\"prose\"]"
   ]
@@ -74,27 +175,19 @@ self.AIW_SITES = {
   "stop": [
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
    ".ds-markdown",
-   "[class*=\"markdown\"]",
-   "[class*=\"prose\"]"
-  ]
- },
- "kimi.moonshot.cn": {
-  "id": "kimi",
-  "label": "Kimi",
-  "stop": [
-   "button[aria-label*=\"Stop\" i]",
-   "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
-  ],
-  "streaming": [],
-  "msg": [
-   ".segment-assistant",
-   ".markdown-container",
    "[class*=\"markdown\"]",
    "[class*=\"prose\"]"
   ]
@@ -105,7 +198,39 @@ self.AIW_SITES = {
   "stop": [
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   ".segment-assistant",
+   ".markdown-container",
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "kimi.moonshot.cn": {
+  "id": "kimi",
+  "label": "Kimi",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -121,7 +246,15 @@ self.AIW_SITES = {
   "stop": [
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -132,11 +265,19 @@ self.AIW_SITES = {
  },
  "chat.qwen.ai": {
   "id": "qwen",
-  "label": "Qwen",
+  "label": "通义千问",
   "stop": [
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -147,11 +288,19 @@ self.AIW_SITES = {
  },
  "tongyi.com": {
   "id": "qwen",
-  "label": "Qwen",
+  "label": "通义千问",
   "stop": [
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -162,11 +311,19 @@ self.AIW_SITES = {
  },
  "qianwen.com": {
   "id": "qwen",
-  "label": "Qwen",
+  "label": "通义千问",
   "stop": [
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -181,7 +338,15 @@ self.AIW_SITES = {
   "stop": [
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -190,28 +355,21 @@ self.AIW_SITES = {
    "[class*=\"prose\"]"
   ]
  },
- "grok.com": {
-  "id": "grok",
-  "label": "Grok",
+ "yiyan.baidu.com": {
+  "id": "yiyan",
+  "label": "文心一言",
   "stop": [
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
-  ],
-  "streaming": [],
-  "msg": [
-   ".message-bubble",
-   "[class*=\"markdown\"]",
-   "[class*=\"prose\"]"
-  ]
- },
- "chat.mistral.ai": {
-  "id": "mistral",
-  "label": "Le Chat",
-  "stop": [
-   "button[aria-label*=\"Stop\" i]",
-   "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -219,13 +377,197 @@ self.AIW_SITES = {
    "[class*=\"prose\"]"
   ]
  },
- "perplexity.ai": {
-  "id": "perplexity",
-  "label": "Perplexity",
+ "chatglm.cn": {
+  "id": "chatglm",
+  "label": "智谱清言",
   "stop": [
    "button[aria-label*=\"Stop\" i]",
    "button[aria-label*=\"停止\"]",
-   "[data-testid*=\"stop\" i]"
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "xinghuo.xfyun.cn": {
+  "id": "xinghuo",
+  "label": "讯飞星火",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "hailuoai.com": {
+  "id": "minimax",
+  "label": "MiniMax",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "chat.minimaxi.com": {
+  "id": "minimax",
+  "label": "MiniMax",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "ying.baichuan-ai.com": {
+  "id": "baichuan",
+  "label": "百小应",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "yuewen.cn": {
+  "id": "stepfun",
+  "label": "跃问",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "tiangong.cn": {
+  "id": "tiangong",
+  "label": "天工",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "n.cn": {
+  "id": "nami",
+  "label": "纳米 AI",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
+  ],
+  "streaming": [],
+  "msg": [
+   "[class*=\"markdown\"]",
+   "[class*=\"prose\"]"
+  ]
+ },
+ "metaso.cn": {
+  "id": "metaso",
+  "label": "秘塔",
+  "stop": [
+   "button[aria-label*=\"Stop\" i]",
+   "button[aria-label*=\"停止\"]",
+   "button[title*=\"停止\"]",
+   "[data-testid*=\"stop\" i]",
+   "[class*=\"stop-btn\" i]",
+   "[class*=\"stopBtn\"]",
+   "[class*=\"stop-button\" i]",
+   "[class*=\"stopButton\"]",
+   "[class*=\"stop-generat\" i]",
+   "[class*=\"stopGenerat\"]",
+   "[class*=\"stop_generat\" i]"
   ],
   "streaming": [],
   "msg": [
@@ -234,5 +576,6 @@ self.AIW_SITES = {
   ]
  }
 };
-self.AIW_GENERIC_STOP = ["button[aria-label*=\"Stop\" i]", "button[aria-label*=\"\u505c\u6b62\"]", "[data-testid*=\"stop\" i]"];
-self.AIW_TITLE_SUFFIX = /\s*[-–—|]\s*(Claude|ChatGPT|Gemini|Google Gemini|DeepSeek|Kimi.*|豆包.*|Grok|Qwen.*|通义.*|腾讯元宝.*|元宝.*|Le Chat.*|Perplexity)\s*$/i;
+self.AIW_GENERIC_STOP = ["button[aria-label*=\"Stop\" i]", "button[aria-label*=\"\u505c\u6b62\"]", "button[title*=\"\u505c\u6b62\"]", "[data-testid*=\"stop\" i]", "[class*=\"stop-btn\" i]", "[class*=\"stopBtn\"]", "[class*=\"stop-button\" i]", "[class*=\"stopButton\"]", "[class*=\"stop-generat\" i]", "[class*=\"stopGenerat\"]", "[class*=\"stop_generat\" i]"];
+self.AIW_STOP_WORDS = ["停止", "停止生成", "停止回答", "停止输出", "停止响应", "中止", "中止生成", "暂停生成", "stop", "stop generating", "stop response", "stop streaming"];
+self.AIW_TITLE_SUFFIX = /\s*[-–—|]\s*(Claude|ChatGPT|Gemini|Google Gemini|DeepSeek|Kimi.*|豆包.*|Grok|Qwen.*|通义.*|腾讯元宝.*|元宝.*|Le Chat.*|Perplexity|文心一言|智谱清言.*|讯飞星火.*|跃问|天工.*|秘塔.*|纳米.*)\s*$/i;

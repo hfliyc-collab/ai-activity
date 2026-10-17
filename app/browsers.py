@@ -17,7 +17,7 @@ import tempfile
 import threading
 import time
 
-from sites import SITES
+from sites import SITES, STOP_WORDS
 
 BROWSERS = [("Safari", "safari"), ("Google Chrome", "chromium"), ("Arc", "chromium"),
             ("Microsoft Edge", "chromium"), ("Brave Browser", "chromium"),
@@ -26,13 +26,24 @@ BROWSERS = [("Safari", "safari"), ("Google Chrome", "chromium"), ("Arc", "chromi
 PROBE_TEMPLATE = r"""(function(){try{
 var C=__CFG__;
 function vis(e){return !!(e&&(e.offsetParent!==null||e.getClientRects().length));}
+function stopWord(t){t=String(t||'').trim().toLowerCase();var i=t.search(/[(（]/);if(i>0)t=t.slice(0,i).trim();return C.words.indexOf(t)>=0;}
 var busy=false,i,j,els;
 for(i=0;i<C.stop.length&&!busy;i++){try{els=document.querySelectorAll(C.stop[i]);for(j=0;j<els.length;j++){if(vis(els[j])){busy=true;break;}}}catch(e){}}
 for(i=0;i<C.streaming.length&&!busy;i++){try{if(document.querySelector(C.streaming[i]))busy=true;}catch(e){}}
+if(!busy){els=document.querySelectorAll('button,[role="button"]');for(j=0;j<els.length&&j<400;j++){var b=els[j];if((stopWord(b.getAttribute('aria-label'))||stopWord(b.getAttribute('title'))||(b.innerText&&b.innerText.length<12&&stopWord(b.innerText)))&&vis(b)){busy=true;break;}}}
 var list=[];for(i=0;i<C.msg.length;i++){try{els=document.querySelectorAll(C.msg[i]);if(els.length){list=els;break;}}catch(e){}}
 var last=list.length?list[list.length-1]:null,t=last?(last.innerText||last.textContent||''):'';
 var cjk=(t.match(/[\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]/g)||[]).length;
-return JSON.stringify({busy:busy,n:t.length,est:cjk+Math.ceil((t.length-cjk)/4),count:list.length,title:document.title});
+var out={busy:busy,n:t.length,est:cjk+Math.ceil((t.length-cjk)/4),count:list.length,title:document.title};
+if(C.quota==='claude'){var Q=window.__aiwQ||(window.__aiwQ={t:0});
+ if(Q.ready){out.quota=Q.ready;Q.ready=null;}
+ if(Date.now()-Q.t>60000){Q.t=Date.now();
+  fetch('/api/organizations',{credentials:'include'}).then(function(r){return r.ok?r.json():[];}).then(function(orgs){
+   orgs=(Array.isArray(orgs)?orgs:[]).slice(0,4);
+   return Promise.all(orgs.map(function(o){return fetch('/api/organizations/'+o.uuid+'/usage',{credentials:'include'})
+    .then(function(r){return r.ok?r.json():null;}).then(function(u){return {uuid:o.uuid,name:o.name,usage:u};}).catch(function(){return null;});}));
+  }).then(function(list){Q.ready=list.filter(function(x){return x&&x.usage;});}).catch(function(){});}}
+return JSON.stringify(out);
 }catch(e){return JSON.stringify({err:String(e).slice(0,100)});}})()"""
 
 POLL_SCRIPT = r"""
@@ -105,6 +116,8 @@ function run(argv){
 
 def _probe_for(site):
     cfg = {k: site[k] for k in ("stop", "streaming", "msg")}
+    cfg["words"] = [w.lower() for w in STOP_WORDS]
+    cfg["quota"] = site.get("quota")
     return PROBE_TEMPLATE.replace("__CFG__", json.dumps(cfg, ensure_ascii=True))
 
 

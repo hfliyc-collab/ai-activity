@@ -191,15 +191,18 @@ class LocalScanner(threading.Thread):
 # ---------------------------------------------------------------- Windows 进程识别
 WIN_APPS = {
     "cursor": lambda p: p.endswith("\\cursor.exe"),
-    "claude-app": lambda p: p.endswith("\\claude.exe") and "anthropicclaude" in p,
-    "chatgpt-app": lambda p: p.endswith("\\chatgpt.exe"),
-    "claude-code": lambda p: p.endswith("\\claude.exe") and "anthropicclaude" not in p,
+    "claude-code": lambda p: p.endswith("\\claude.exe") and "\\.local\\bin\\" in p,
 }
 WIN_BROWSERS = {"chrome.exe": "Chrome", "msedge.exe": "Edge", "brave.exe": "Brave"}
 
 
 def win_process_paths():
-    """列出所有进程的可执行文件完整路径（小写）。只用 ctypes，不需要额外安装。"""
+    """列出所有进程的可执行文件完整路径（小写）。"""
+    return [p for _, p in win_processes()]
+
+
+def win_processes():
+    """[(pid, 小写完整路径)]。只用 ctypes，不需要额外安装。"""
     import ctypes
     from ctypes import wintypes
     psapi = ctypes.WinDLL("psapi")
@@ -225,7 +228,7 @@ def win_process_paths():
         try:
             size = wintypes.DWORD(len(buf))
             if k32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
-                out.append(buf.value.lower())
+                out.append((int(pid), buf.value.lower()))
         finally:
             k32.CloseHandle(h)
     return out

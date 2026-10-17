@@ -19,6 +19,13 @@
   }
 
   function visible(el) { return !!(el && (el.offsetParent !== null || el.getClientRects().length)); }
+  const WORDS = self.AIW_STOP_WORDS || [];
+  function stopWord(t) {
+    t = String(t || "").trim().toLowerCase();
+    const i = t.search(/[(（]/);
+    if (i > 0) t = t.slice(0, i).trim();
+    return WORDS.includes(t);
+  }
   function probe() {
     let busy = false;
     for (const sel of site.stop) {
@@ -26,6 +33,14 @@
     }
     for (const sel of site.streaming) {
       try { if (!busy && document.querySelector(sel)) busy = true; } catch (e) { /* 无效选择器 */ }
+    }
+    if (!busy) {
+      const btns = document.querySelectorAll('button,[role="button"]');
+      for (let j = 0; j < btns.length && j < 400; j++) {
+        const b = btns[j];
+        if ((stopWord(b.getAttribute("aria-label")) || stopWord(b.getAttribute("title")) ||
+             (b.innerText && b.innerText.length < 12 && stopWord(b.innerText))) && visible(b)) { busy = true; break; }
+      }
     }
     let list = [];
     for (const sel of site.msg) {
@@ -47,6 +62,26 @@
   new MutationObserver(() => { if (Date.now() - lastSent > 450) report(); })
     .observe(document.documentElement, { subtree: true, childList: true, characterData: true });
   setTimeout(report, 300);
+
+  // 订阅额度：已登录页面读取自己账号的用量（不读取、不发送对话内容）
+  if (site.quota === "claude") {
+    const pull = async () => {
+      try {
+        const r = await fetch("/api/organizations", { credentials: "include" });
+        if (!r.ok) return;
+        const orgs = (await r.json() || []).slice(0, 4);
+        const list = await Promise.all(orgs.map(async (o) => {
+          try {
+            const u = await fetch(`/api/organizations/${o.uuid}/usage`, { credentials: "include" });
+            return u.ok ? { uuid: o.uuid, name: o.name, usage: await u.json() } : null;
+          } catch (e) { return null; }
+        }));
+        send({ kind: "quota", orgs: list.filter((x) => x && x.usage) });
+      } catch (e) { /* 未登录或网络异常 */ }
+    };
+    setTimeout(pull, 1500);
+    setInterval(pull, 60000);
+  }
 
   window.addEventListener("message", (e) => {
     const d = e.data;
